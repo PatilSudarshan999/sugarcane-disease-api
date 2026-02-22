@@ -74,7 +74,6 @@
 
 # if __name__ == '__main__':
 #     app.run(host='0.0.0.0', port=5000, debug=True)
-
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import requests
@@ -104,12 +103,10 @@ def send_to_dialogflow(text):
         return "Dialogflow not configured properly."
 
     url = f"https://dialogflow.googleapis.com/v2/projects/{DIALOGFLOW_PROJECT_ID}/agent/sessions/{DIALOGFLOW_SESSION_ID}:detectIntent"
-    
     headers = {
         "Authorization": f"Bearer {DIALOGFLOW_TOKEN}",
         "Content-Type": "application/json"
     }
-
     body = {
         "queryInput": {
             "text": {
@@ -122,17 +119,16 @@ def send_to_dialogflow(text):
     try:
         response = requests.post(url, headers=headers, json=body)
         result = response.json()
-        return result['queryResult']['fulfillmentText']
+        return result.get('queryResult', {}).get('fulfillmentText', "No response from Dialogflow")
     except Exception as e:
         return f"Dialogflow error: {str(e)}"
-
 
 # ==============================
 # LOAD ADVICE CSV (SAFE)
 # ==============================
 try:
     advice_df = pd.read_csv("advice_data.csv")
-except:
+except Exception:
     advice_df = None
 
 def get_advice_from_csv(disease):
@@ -147,7 +143,6 @@ def get_advice_from_csv(disease):
         return fertilizer, irrigation
     else:
         return "No fertilizer advice available", "No irrigation advice available"
-
 
 # ==============================
 # LOAD TRAINED MODEL (SavedModel)
@@ -169,7 +164,6 @@ class_names = [
     "Yellow"
 ]
 
-
 # ==============================
 # DISEASE PREDICTION FUNCTION
 # ==============================
@@ -179,23 +173,20 @@ def predict_disease(image_bytes):
 
     img = Image.open(io.BytesIO(image_bytes)).convert('RGB')
     img = img.resize((256, 256))
-
     img_array = np.array(img)
     img_array = preprocess_input(img_array)
     img_array = np.expand_dims(img_array, axis=0)
 
-    predictions = model.predict(img_array)
+    predictions = model.predict(img_array, verbose=0)
     class_index = np.argmax(predictions, axis=1)[0]
 
     return class_names[class_index]
-
 
 # ==============================
 # IMAGE → PREDICT → ADVICE
 # ==============================
 @app.route('/predict-and-advise', methods=['POST'])
 def predict_and_advise():
-
     if 'image' not in request.files:
         return jsonify({"error": "No image uploaded"}), 400
 
@@ -214,7 +205,6 @@ def predict_and_advise():
         "irrigation": irrigation
     })
 
-
 # ==============================
 # TEXT / VOICE → DIALOGFLOW
 # ==============================
@@ -225,7 +215,6 @@ def handle_text():
     response_text = send_to_dialogflow(user_text)
     return jsonify({"response": response_text})
 
-
 # ==============================
 # HEALTH CHECK ROUTE
 # ==============================
@@ -234,7 +223,6 @@ def home():
     return jsonify({
         "status": "Sugarcane AI Backend Running Successfully"
     })
-
 
 # ==============================
 # RUN SERVER (RENDER SAFE)
