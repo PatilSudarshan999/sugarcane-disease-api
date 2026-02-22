@@ -74,6 +74,8 @@
 
 # if __name__ == '__main__':
 #     app.run(host='0.0.0.0', port=5000, debug=True)
+
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import requests
@@ -95,7 +97,7 @@ CORS(app)
 # DIALOGFLOW CONFIG
 # ==============================
 DIALOGFLOW_PROJECT_ID = os.environ.get("DIALOGFLOW_PROJECT_ID", "")
-DIALOGFLOW_SESSION_ID = "123456"
+DIALOGFLOW_SESSION_ID = os.environ.get("DIALOGFLOW_SESSION_ID", "123456")
 DIALOGFLOW_TOKEN = os.environ.get("DIALOGFLOW_TOKEN", "")
 
 def send_to_dialogflow(text):
@@ -128,7 +130,8 @@ def send_to_dialogflow(text):
 # ==============================
 try:
     advice_df = pd.read_csv("advice_data.csv")
-except Exception:
+except Exception as e:
+    print("❌ Failed to load advice CSV:", e)
     advice_df = None
 
 def get_advice_from_csv(disease):
@@ -136,11 +139,8 @@ def get_advice_from_csv(disease):
         return "No fertilizer advice available", "No irrigation advice available"
 
     row = advice_df[advice_df['Disease'] == disease]
-
     if not row.empty:
-        fertilizer = row['Fertilizer_Advice'].values[0]
-        irrigation = row['Irrigation_Advice'].values[0]
-        return fertilizer, irrigation
+        return row['Fertilizer_Advice'].values[0], row['Irrigation_Advice'].values[0]
     else:
         return "No fertilizer advice available", "No irrigation advice available"
 
@@ -154,7 +154,6 @@ except Exception as e:
     print("❌ Model failed to load:", e)
     model = None
 
-# IMPORTANT: Must match training folder order
 class_names = [
     "BacterialBlights",
     "Healthy",
@@ -179,7 +178,6 @@ def predict_disease(image_bytes):
 
     predictions = model.predict(img_array, verbose=0)
     class_index = np.argmax(predictions, axis=1)[0]
-
     return class_names[class_index]
 
 # ==============================
@@ -208,7 +206,7 @@ def predict_and_advise():
 # ==============================
 # TEXT / VOICE → DIALOGFLOW
 # ==============================
-@app.route('/sendToDialogflow', methods=['POST'])
+@app.route('/send-to-dialogflow', methods=['POST'])
 def handle_text():
     data = request.get_json()
     user_text = data.get('text', '')
@@ -220,9 +218,7 @@ def handle_text():
 # ==============================
 @app.route('/')
 def home():
-    return jsonify({
-        "status": "Sugarcane AI Backend Running Successfully"
-    })
+    return jsonify({"status": "Sugarcane AI Backend Running Successfully"})
 
 # ==============================
 # RUN SERVER (RENDER SAFE)
