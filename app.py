@@ -204,6 +204,14 @@ def home():
 # RUN SERVER (RENDER / RAILWAY SAFE)
 # ==============================
 if __name__ == "__main__":
-    # Render / Railway provides PORT env variable automatically
-    port = int(os.environ.get("PORT", 10000))
+    # Get port from env; fallback to 10000 if not set
+    port_env = os.environ.get("PORT")
+    
+    try:
+        port = int(port_env) if port_env else 10000
+    except ValueError:
+        print(f"⚠️ Invalid PORT value: {port_env}, using default 10000")
+        port = 10000
+
+    print(f"Starting server on port {port}...")
     app.run(host="0.0.0.0", port=port)
