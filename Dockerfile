@@ -1,25 +1,17 @@
-# Use Python 3.10 base image
+# Use Python 3.10 slim for compatibility with TensorFlow 2.13
 FROM python:3.10-slim
-
-# Avoid root permission issues
-RUN useradd -m -u 1000 user
-USER user
-ENV PATH="/home/user/.local/bin:$PATH"
 
 # Set working directory
 WORKDIR /app
 
-# Copy files
-COPY --chown=user . /app
-
-# Upgrade pip
+# Copy requirements and install
+COPY requirements.txt .
 RUN pip install --upgrade pip
-
-# Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Expose port 10000 for Render
-EXPOSE 10000
+# Copy the rest of the files
+COPY . .
 
-# Start the app
-CMD ["gunicorn", "--bind", "0.0.0.0:10000", "app:app"]
+# Expose port (Render expects 100% of container to listen on $PORT)
+ENV PORT=5000
+CMD ["gunicorn", "-b", "0.0.0.0:5000", "app:app"]
