@@ -83,7 +83,7 @@ import io
 from PIL import Image
 import numpy as np
 import os
-from tensorflow.keras.models import load_model
+import tensorflow as tf
 from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
 
 # ==============================
@@ -95,16 +95,21 @@ CORS(app)
 # ==============================
 # DIALOGFLOW CONFIG
 # ==============================
-DIALOGFLOW_PROJECT_ID = "your-project-id"
+DIALOGFLOW_PROJECT_ID = os.environ.get("DIALOGFLOW_PROJECT_ID", "")
 DIALOGFLOW_SESSION_ID = "123456"
-DIALOGFLOW_TOKEN = "your-dialogflow-bearer-token"
+DIALOGFLOW_TOKEN = os.environ.get("DIALOGFLOW_TOKEN", "")
 
 def send_to_dialogflow(text):
+    if not DIALOGFLOW_PROJECT_ID or not DIALOGFLOW_TOKEN:
+        return "Dialogflow not configured properly."
+
     url = f"https://dialogflow.googleapis.com/v2/projects/{DIALOGFLOW_PROJECT_ID}/agent/sessions/{DIALOGFLOW_SESSION_ID}:detectIntent"
+    
     headers = {
         "Authorization": f"Bearer {DIALOGFLOW_TOKEN}",
         "Content-Type": "application/json"
     }
+
     body = {
         "queryInput": {
             "text": {
@@ -118,17 +123,24 @@ def send_to_dialogflow(text):
         response = requests.post(url, headers=headers, json=body)
         result = response.json()
         return result['queryResult']['fulfillmentText']
-    except:
-        return "Dialogflow not configured. You said: " + text
+    except Exception as e:
+        return f"Dialogflow error: {str(e)}"
 
 
 # ==============================
-# LOAD ADVICE CSV
+# LOAD ADVICE CSV (SAFE)
 # ==============================
-advice_df = pd.read_csv("advice_data.csv")
+try:
+    advice_df = pd.read_csv("advice_data.csv")
+except:
+    advice_df = None
 
 def get_advice_from_csv(disease):
+    if advice_df is None:
+        return "No fertilizer advice available", "No irrigation advice available"
+
     row = advice_df[advice_df['Disease'] == disease]
+
     if not row.empty:
         fertilizer = row['Fertilizer_Advice'].values[0]
         irrigation = row['Irrigation_Advice'].values[0]
@@ -138,11 +150,16 @@ def get_advice_from_csv(disease):
 
 
 # ==============================
-# LOAD TRAINED MODEL
+# LOAD TRAINED MODEL (SavedModel)
 # ==============================
-model = load_model("sugarcane_6class_model.h5")
+try:
+    model = tf.keras.models.load_model("sugarcane_model")
+    print("✅ Model loaded successfully")
+except Exception as e:
+    print("❌ Model failed to load:", e)
+    model = None
 
-# IMPORTANT: Order must match training folder order
+# IMPORTANT: Must match training folder order
 class_names = [
     "BacterialBlights",
     "Healthy",
@@ -152,10 +169,14 @@ class_names = [
     "Yellow"
 ]
 
+
 # ==============================
 # DISEASE PREDICTION FUNCTION
 # ==============================
 def predict_disease(image_bytes):
+    if model is None:
+        return "Model not loaded"
+
     img = Image.open(io.BytesIO(image_bytes)).convert('RGB')
     img = img.resize((256, 256))
 
@@ -177,6 +198,9 @@ def predict_and_advise():
 
     if 'image' not in request.files:
         return jsonify({"error": "No image uploaded"}), 400
+
+    if model is None:
+        return jsonify({"error": "Model not loaded"}), 500
 
     image_file = request.files['image']
     image_bytes = image_file.read()
@@ -203,16 +227,18 @@ def handle_text():
 
 
 # ==============================
-# SIMPLE TEST ROUTE (VERY IMPORTANT)
+# HEALTH CHECK ROUTE
 # ==============================
 @app.route('/')
 def home():
-    return jsonify({"status": "Sugarcane AI Backend Running Successfully"})
+    return jsonify({
+        "status": "Sugarcane AI Backend Running Successfully"
+    })
 
 
 # ==============================
-# RUN SERVER (RENDER COMPATIBLE)
+# RUN SERVER (RENDER SAFE)
 # ==============================
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
+    port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
