@@ -82,7 +82,7 @@ import pandas as pd
 import io
 from PIL import Image
 import numpy as np
-import tensorflow as tf
+import os
 from tensorflow.keras.models import load_model
 from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
 
@@ -152,16 +152,15 @@ class_names = [
     "Yellow"
 ]
 
-
 # ==============================
 # DISEASE PREDICTION FUNCTION
 # ==============================
 def predict_disease(image_bytes):
     img = Image.open(io.BytesIO(image_bytes)).convert('RGB')
-    img = img.resize((256, 256))  # must match training size
+    img = img.resize((256, 256))
 
     img_array = np.array(img)
-    img_array = preprocess_input(img_array)  # Correct preprocessing
+    img_array = preprocess_input(img_array)
     img_array = np.expand_dims(img_array, axis=0)
 
     predictions = model.predict(img_array)
@@ -177,7 +176,7 @@ def predict_disease(image_bytes):
 def predict_and_advise():
 
     if 'image' not in request.files:
-        return jsonify({"error": "No image uploaded"})
+        return jsonify({"error": "No image uploaded"}), 400
 
     image_file = request.files['image']
     image_bytes = image_file.read()
@@ -204,20 +203,16 @@ def handle_text():
 
 
 # ==============================
-# OPTIONAL SIMPLE ENDPOINTS
+# SIMPLE TEST ROUTE (VERY IMPORTANT)
 # ==============================
-@app.route('/fertilizer', methods=['POST'])
-def fertilizer_advice():
-    return jsonify({"advice": "Use 150 kg Nitrogen per hectare"})
-
-
-@app.route('/irrigation', methods=['POST'])
-def irrigation_advice():
-    return jsonify({"advice": "Irrigate 25 mm water every 5 days"})
+@app.route('/')
+def home():
+    return jsonify({"status": "Sugarcane AI Backend Running Successfully"})
 
 
 # ==============================
-# RUN SERVER
+# RUN SERVER (RENDER COMPATIBLE)
 # ==============================
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
