@@ -1,6 +1,15 @@
+# flask==3.0.0
+# flask-cors==4.0.0
+# gunicorn==21.2.0
+# pandas
+# numpy
+# Pillow
+# requests
+
 flask==3.0.0
 flask-cors==4.0.0
 gunicorn==21.2.0
+tensorflow==2.13.0
 pandas
 numpy
 Pillow
